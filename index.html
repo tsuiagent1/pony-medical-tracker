@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pony 醫療病歷與每日照護追蹤看板</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdfa',
+              100: '#ccfbf1',
+              500: '#14b8a6',
+              600: '#0d9488',
+              700: '#0f766e',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap');
+    body {
+      font-family: 'Plus Jakarta Sans', 'Noto Sans TC', sans-serif;
+    }
+    .badge-pulse {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .5; }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased flex flex-col justify-between">
+
+  <!-- Header 導航 -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-teal-500 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-teal-500/20">
+          <i class="fa-solid fa-cat"></i>
+        </div>
+        <div>
+          <h1 class="text-base sm:text-lg font-bold text-slate-900 leading-tight">Pony 照護追蹤系統</h1>
+          <p class="text-xs text-slate-500">崔董專屬愛貓醫療與健康看板</p>
+        </div>
+      </div>
+      <div class="flex items-center space-x-2">
+        <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+          <span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5 badge-pulse"></span>
+          泌尿道照護中
+        </span>
+        <button onclick="switchTab('emergency')" class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 transition-colors">
+          <i class="fa-solid fa-triangle-exclamation mr-1 text-rose-500"></i>
+          急診警訊
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主內容容器 -->
+  <main class="max-w-5xl mx-auto px-4 sm:px-6 py-6 w-full flex-1">
+
+    <!-- 貓咪核心資訊卡 -->
+    <section class="bg-gradient-to-r from-teal-700 via-teal-800 to-slate-900 rounded-2xl p-5 sm:p-6 text-white shadow-xl mb-6 relative overflow-hidden">
+      <div class="absolute -right-10 -bottom-10 opacity-10 text-9xl">
+        <i class="fa-solid fa-shield-cat"></i>
+      </div>
+      <div class="relative z-10 grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div>
+          <span class="text-xs text-teal-200 font-medium">基本資訊</span>
+          <div class="text-lg sm:text-xl font-bold mt-0.5">Pony</div>
+          <div class="text-xs text-teal-100/80 mt-1">13歲熟齡 / 母貓 / 已結紮</div>
+        </div>
+        <div>
+          <span class="text-xs text-teal-200 font-medium">最新體重</span>
+          <div class="text-lg sm:text-xl font-bold mt-0.5" id="headerWeight">4.74 <span class="text-xs font-normal text-teal-200">kg</span></div>
+          <div class="text-xs text-teal-100/80 mt-1">基準量測 (2026-10-26)</div>
+        </div>
+        <div>
+          <span class="text-xs text-teal-200 font-medium">主治醫師</span>
+          <div class="text-base sm:text-lg font-bold mt-0.5">蕭宏憲 醫師</div>
+          <div class="text-xs text-teal-100/80 mt-1">中和杜瑪動物醫院</div>
+        </div>
+        <div>
+          <span class="text-xs text-teal-200 font-medium">每日補水目標</span>
+          <div class="text-lg sm:text-xl font-bold text-amber-300 mt-0.5">200 ~ 240 <span class="text-xs font-normal text-amber-200">ml</span></div>
+          <div class="text-xs text-teal-100/80 mt-1">針筒灌水上限 50~80ml</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 分頁導航切換 -->
+    <div class="flex border-b border-slate-200 mb-6 space-x-1 sm:space-x-2 overflow-x-auto pb-1">
+      <button id="tab-daily-btn" onclick="switchTab('daily')" class="tab-btn px-4 py-2.5 text-sm font-semibold text-teal-700 border-b-2 border-teal-600 flex items-center space-x-2 whitespace-nowrap">
+        <i class="fa-solid fa-calendar-check"></i>
+        <span>今日照護打卡</span>
+      </button>
+      <button id="tab-records-btn" onclick="switchTab('records')" class="tab-btn px-4 py-2.5 text-sm font-medium text-slate-500 hover:text-slate-800 border-b-2 border-transparent flex items-center space-x-2 whitespace-nowrap">
+        <i class="fa-solid fa-file-medical"></i>
+        <span>就診病歷與血檢</span>
+      </button>
+      <button id="tab-history-btn" onclick="switchTab('history')" class="tab-btn px-4 py-2.5 text-sm font-medium text-slate-500 hover:text-slate-800 border-b-2 border-transparent flex items-center space-x-2 whitespace-nowrap">
+        <i class="fa-solid fa-clock-rotate-left"></i>
+        <span>歷史追蹤日誌</span>
+      </button>
+      <button id="tab-emergency-btn" onclick="switchTab('emergency')" class="tab-btn px-4 py-2.5 text-sm font-medium text-slate-500 hover:text-slate-800 border-b-2 border-transparent flex items-center space-x-2 whitespace-nowrap">
+        <i class="fa-solid fa-bell-exclamation text-rose-500"></i>
+        <span>緊急急診警訊</span>
+      </button>
+    </div>
+
+    <!-- TAB 1: 今日照護打卡 -->
+    <div id="tab-daily" class="tab-content space-y-6">
+
+      <!-- 水分追蹤器 -->
+      <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-2">
+          <div>
+            <h2 class="text-base font-bold text-slate-900 flex items-center">
+              <i class="fa-solid fa-droplet text-cyan-500 mr-2"></i>
+              今日補水進度儀表板
+            </h2>
+            <p class="text-xs text-slate-500 mt-0.5">每日總目標 200~240 ml（體重 4.74kg，預防血液濃縮與尿結晶）</p>
+          </div>
+          <div class="text-right">
+            <span class="text-2xl font-black text-cyan-600" id="totalWaterText">0</span>
+            <span class="text-xs text-slate-400">/ 220 ml (基準值)</span>
+          </div>
+        </div>
+
+        <!-- 水分進度條 -->
+        <div class="mt-4">
+          <div class="w-full bg-slate-100 rounded-full h-4 overflow-hidden relative shadow-inner">
+            <div id="waterProgressBar" class="bg-gradient-to-r from-cyan-400 to-teal-500 h-full rounded-full transition-all duration-500" style="width: 0%;"></div>
+          </div>
+          <div class="flex justify-between text-xs text-slate-400 mt-1.5">
+            <span>0 ml</span>
+            <span class="text-cyan-600 font-medium">灌水限額 50~80ml</span>
+            <span class="text-teal-700 font-bold">總目標 200~240ml</span>
+          </div>
+        </div>
+
+        <!-- 水分輸入欄位 -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-5">
+          <div class="bg-slate-50 p-3.5 rounded-lg border border-slate-200">
+            <label class="block text-xs font-semibold text-slate-700 mb-1">
+              <i class="fa-solid fa-syringe text-teal-600 mr-1"></i>
+              針筒主動灌水 (ml)
+            </label>
+            <div class="flex items-center space-x-2">
+              <input type="number" id="inputSyringeWater" min="0" max="150" step="5" value="0" oninput="calculateWater()" class="w-full bg-white border border-slate-300 rounded-md px-3 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500">
+              <span class="text-xs text-slate-500">ml</span>
+            </div>
+            <p class="text-[11px] text-amber-600 mt-1">⚠️ 每日限額 50~80ml，單次 5~10ml 自然趴姿推入</p>
+          </div>
+
+          <div class="bg-slate-50 p-3.5 rounded-lg border border-slate-200">
+            <label class="block text-xs font-semibold text-slate-700 mb-1">
+              <i class="fa-solid fa-bowl-food text-cyan-600 mr-1"></i>
+              濕食/副食湯拌水 (ml)
+            </label>
+            <div class="flex items-center space-x-2">
+              <input type="number" id="inputDietWater" min="0" max="300" step="10" value="0" oninput="calculateWater()" class="w-full bg-white border border-slate-300 rounded-md px-3 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500">
+              <span class="text-xs text-slate-500">ml</span>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-1">罐頭稀釋、肉泥湯水攝取量</p>
+          </div>
+
+          <div class="bg-slate-50 p-3.5 rounded-lg border border-slate-200">
+            <label class="block text-xs font-semibold text-slate-700 mb-1">
+              <i class="fa-solid fa-faucet-drip text-blue-600 mr-1"></i>
+              水碗自主飲水 (ml)
+            </label>
+            <div class="flex items-center space-x-2">
+              <input type="number" id="inputBowlWater" min="0" max="300" step="10" value="0" oninput="calculateWater()" class="w-full bg-white border border-slate-300 rounded-md px-3 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500">
+              <span class="text-xs text-slate-500">ml</span>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-1">觀察自主去水碗飲水量</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 用藥與症狀打卡表單 -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- 每日用藥打卡 -->
+        <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <h3 class="text-base font-bold text-slate-900 flex items-center mb-1">
+              <i class="fa-solid fa-pills text-indigo-500 mr-2"></i>
+              每日醫囑用藥
+            </h3>
+            <p class="text-xs text-slate-500 mb-4">消炎止痛藥與尿道放鬆膠囊（嚴禁自行停藥）</p>
+
+            <div class="space-y-3">
+              <label class="flex items-center p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer transition">
+                <input type="checkbox" id="medMorning" class="w-5 h-5 text-teal-600 rounded border-slate-300 focus:ring-teal-500">
+                <div class="ml-3">
+                  <span class="text-sm font-semibold text-slate-800">早上服藥 (口服膠囊)</span>
+                  <p class="text-xs text-slate-500">使用餵藥器或肉泥包裹，自然趴姿餵服</p>
+                </div>
+              </label>
+
+              <label class="flex items-center p-3 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer transition">
+                <input type="checkbox" id="medEvening" class="w-5 h-5 text-teal-600 rounded border-slate-300 focus:ring-teal-500">
+                <div class="ml-3">
+                  <span class="text-sm font-semibold text-slate-800">晚上服藥 (口服膠囊)</span>
+                  <p class="text-xs text-slate-500">間隔 10~12 小時，確保尿道放鬆</p>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div class="mt-4 p-3 rounded-lg bg-indigo-50 border border-indigo-100 text-[11px] text-indigo-800">
+            <i class="fa-solid fa-circle-info mr-1 text-indigo-600"></i>
+            醫師醫囑：若未按時服藥放鬆尿道，強行灌水可能加劇排尿困難或痙攣！
+          </div>
+        </div>
+
+        <!-- 排尿與身體狀態追蹤 -->
+        <div class="bg-white rounded-xl p-5 border border-slate-200 shadow-sm space-y-4">
+          <h3 class="text-base font-bold text-slate-900 flex items-center">
+            <i class="fa-solid fa-stethoscope text-emerald-500 mr-2"></i>
+            排尿與生理指標
+          </h3>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">今日排尿次數</label>
+              <input type="number" id="urinationCount" min="0" max="20" value="0" class="w-full bg-slate-50 border border-slate-300 rounded-md px-3 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">今日體重 (kg)</label>
+              <input type="number" id="inputDailyWeight" step="0.01" value="4.74" class="w-full bg-slate-50 border border-slate-300 rounded-md px-3 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500">
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">單次尿量規模</label>
+            <select id="urineSize" class="w-full bg-slate-50 border border-slate-300 rounded-md px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500">
+              <option value="正常尿塊 (約乒乓球至棒球大)">正常尿塊 (約乒乓球至棒球大)</option>
+              <option value="偏小塊 (10元硬幣大小)">偏小塊 (10元硬幣大小)</option>
+              <option value="點狀滴尿 / 極少量">點狀滴尿 / 極少量 ⚠️</option>
+              <option value="蹲砂盆無尿排出">蹲砂盆無尿排出 🚨 (危急)</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">尿液顏色觀察</label>
+            <select id="urineColor" class="w-full bg-slate-50 border border-slate-300 rounded-md px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500">
+              <option value="淡黃色透明 (正常良好)">淡黃色透明 (正常良好)</option>
+              <option value="深黃色濃縮 (水分不足)">深黃色濃縮 (水分不足)</option>
+              <option value="微紅/淡粉紅 (輕度血尿)">微紅/淡粉紅 (輕度血尿 ⚠️)</option>
+              <option value="深紅血尿 / 帶血塊">深紅血尿 / 帶血塊 🚨</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">排尿用力/擠尿狀況</label>
+            <select id="strainingStatus" class="w-full bg-slate-50 border border-slate-300 rounded-md px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500">
+              <option value="正常輕鬆，無用力">正常輕鬆，無用力</option>
+              <option value="輕微用力，蹲盆時間稍長">輕微用力，蹲盆時間稍長</option>
+              <option value="明顯擠尿、來回進出砂盆">明顯擠尿、來回進出砂盆 ⚠️</option>
+              <option value="頻繁蹲盆叫喊呻吟">頻繁蹲盆叫喊呻吟 🚨</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">備註 / 食慾與精神</label>
+            <textarea id="dailyNotes" rows="2" placeholder="紀錄食慾（吃乾飼料或濕罐）、精神活動力或特殊反應..." class="w-full bg-slate-50 border border-slate-300 rounded-md px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"></textarea>
+          </div>
+
+          <button onclick="saveDailyRecord()" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-2.5 px-4 rounded-lg shadow-md shadow-teal-600/20 transition flex items-center justify-center space-x-2">
+            <i class="fa-solid fa-floppy-disk"></i>
+            <span>儲存今日照護日誌</span>
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- TAB 2: 就診病歷與血檢 -->
+    <div id="tab-records" class="tab-content hidden space-y-6">
+
+      <!-- 2026-10-26 初診紀錄卡片 -->
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="bg-slate-900 text-white px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <div class="flex items-center space-x-2">
+              <span class="px-2 py-0.5 rounded text-[11px] font-bold bg-teal-500 text-white">初診病歷</span>
+              <h2 class="text-base font-bold">2026 年 10 月 26 日 門診紀錄</h2>
+            </div>
+            <p class="text-xs text-slate-300 mt-1">主治：蕭宏憲 醫師 / 中和杜瑪動物醫院</p>
+          </div>
+          <div class="text-right">
+            <span class="text-xs text-slate-400">當日體重</span>
+            <div class="text-base font-bold text-teal-300">4.74 kg</div>
+          </div>
+        </div>
+
+        <div class="p-5 space-y-6">
+
+          <!-- 主訴與診斷 -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-rose-50 border border-rose-100 rounded-lg p-3.5">
+              <h3 class="text-xs font-bold text-rose-800 flex items-center mb-1">
+                <i class="fa-solid fa-triangle-exclamation mr-1.5"></i>
+                主要就診症狀
+              </h3>
+              <ul class="text-xs text-rose-700 space-y-1 list-disc list-inside">
+                <li>頻繁進出貓砂盆、擠尿</li>
+                <li>排尿困難、滴尿痛叫</li>
+                <li>尿液呈現淡紅色血尿</li>
+              </ul>
+            </div>
+
+            <div class="bg-teal-50 border border-teal-100 rounded-lg p-3.5">
+              <h3 class="text-xs font-bold text-teal-800 flex items-center mb-1">
+                <i class="fa-solid fa-clipboard-check mr-1.5"></i>
+                臨床診斷方向
+              </h3>
+              <ul class="text-xs text-teal-700 space-y-1 list-disc list-inside">
+                <li><strong>自發性膀胱炎 (FIC)</strong>：環境緊迫或尿液濃縮引發</li>
+                <li><strong>泌尿道結晶/結石</strong>：濃縮尿刮傷膀胱及尿道</li>
+                <li><strong>細菌性泌尿道感染</strong>：熟齡貓好發併發感染</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- 血檢數據視覺化看板 -->
+          <div>
+            <h3 class="text-sm font-bold text-slate-900 flex items-center mb-3">
+              <i class="fa-solid fa-flask-vial text-teal-600 mr-2"></i>
+              IDEXX 血液生化與血球檢驗分析
+            </h3>
+
+            <!-- 腎功能組 -->
+            <div class="mb-4">
+              <span class="text-xs font-bold text-slate-600 uppercase tracking-wider">腎功能與早期指標 (Catalyst One - 皆正常優良)</span>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2">
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                  <div class="flex justify-between items-center text-xs">
+                    <span class="font-bold text-slate-700">SDMA</span>
+                    <span class="px-1.5 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-800 font-bold">優良</span>
+                  </div>
+                  <div class="text-lg font-black text-slate-800 mt-1">12 <span class="text-xs font-normal text-slate-500">μg/dL</span></div>
+                  <div class="text-[11px] text-slate-400 mt-1">參考區間: 0 - 14</div>
+                </div>
+
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                  <div class="flex justify-between items-center text-xs">
+                    <span class="font-bold text-slate-700">肌酸酐 (CREA)</span>
+                    <span class="px-1.5 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-800 font-bold">正常</span>
+                  </div>
+                  <div class="text-lg font-black text-slate-800 mt-1">1.5 <span class="text-xs font-normal text-slate-500">mg/dL</span></div>
+                  <div class="text-[11px] text-slate-400 mt-1">參考區間: 0.8 - 2.4</div>
+                </div>
+
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                  <div class="flex justify-between items-center text-xs">
+                    <span class="font-bold text-slate-700">尿素氮 (BUN)</span>
+                    <span class="px-1.5 py-0.5 rounded text-[10px] bg-emerald-100 text-emerald-800 font-bold">正常</span>
+                  </div>
+                  <div class="text-lg font-black text-slate-800 mt-1">26 <span class="text-xs font-normal text-slate-500">mg/dL</span></div>
+                  <div class="text-[11px] text-slate-400 mt-1">參考區間: 16 - 36</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 脫水血液濃縮指標 -->
+            <div>
+              <span class="text-xs font-bold text-amber-700 uppercase tracking-wider flex items-center">
+                <i class="fa-solid fa-triangle-exclamation mr-1.5"></i>
+                全血球計數 (ProCyte Dx - 提示嚴重脫水與血液濃縮)
+              </span>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2">
+                <div class="bg-amber-50 p-3 rounded-lg border border-amber-200">
+                  <div class="flex justify-between items-center text-xs">
+                    <span class="font-bold text-amber-900">血球容積比 (HCT)</span>
+                    <span class="px-1.5 py-0.5 rounded text-[10px] bg-rose-100 text-rose-800 font-bold">⚠️ 偏高</span>
+                  </div>
+                  <div class="text-lg font-black text-rose-600 mt-1">59.0 <span class="text-xs font-normal text-slate-600">%</span></div>
+                  <div class="text-[11px] text-slate-500 mt-1">參考區間: 30.3 - 52.3%</div>
+                </div>
+
+                <div class="bg-amber-50 p-3 rounded-lg border border-amber-200">
+                  <div class="flex justify-between items-center text-xs">
+                    <span class="font-bold text-amber-900">血紅素 (HGB)</span>
+                    <span class="px-1.5 py-0.5 rounded text-[10px] bg-rose-100 text-rose-800 font-bold">⚠️ 偏高</span>
+                  </div>
+                  <div class="text-lg font-black text-rose-600 mt-1">17.2 <span class="text-xs font-normal text-slate-600">g/dL</span></div>
+                  <div class="text-[11px] text-slate-500 mt-1">參考區間: 9.8 - 16.2 g/dL</div>
+                </div>
+
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                  <div class="flex justify-between items-center text-xs">
+                    <span class="font-bold text-slate-700">紅血球總數 (RBC)</span>
+                    <span class="px-1.5 py-0.5 rounded text-[10px] bg-amber-100 text-amber-800 font-bold">高標上限</span>
+                  </div>
+                  <div class="text-lg font-black text-slate-800 mt-1">11.64 <span class="text-xs font-normal text-slate-500">M/μL</span></div>
+                  <div class="text-[11px] text-slate-400 mt-1">參考區間: 6.54 - 12.20</div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- 門診費用明細 -->
+          <div>
+            <div class="flex justify-between items-center mb-2">
+              <h3 class="text-sm font-bold text-slate-900 flex items-center">
+                <i class="fa-solid fa-receipt text-slate-500 mr-2"></i>
+                門診診療費用明細
+              </h3>
+              <span class="text-xs font-bold text-teal-700">總計：NT$ 7,575</span>
+            </div>
+            <div class="overflow-x-auto rounded-lg border border-slate-200">
+              <table class="w-full text-left text-xs">
+                <thead class="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
+                  <tr>
+                    <th class="py-2 px-3">項目</th>
+                    <th class="py-2 px-3 text-right">單價</th>
+                    <th class="py-2 px-3 text-center">數量</th>
+                    <th class="py-2 px-3 text-right">小計</th>
+                    <th class="py-2 px-3">備註說明</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 text-slate-600">
+                  <tr><td class="py-2 px-3 font-medium text-slate-900">腹腔X光(3張)+影像判讀</td><td class="py-2 px-3 text-right">$1,500</td><td class="py-2 px-3 text-center">1</td><td class="py-2 px-3 text-right font-semibold">$1,500</td><td class="py-2 px-3 text-slate-400">常規行情判讀</td></tr>
+                  <tr><td class="py-2 px-3 font-medium text-slate-900">單一系統超音波</td><td class="py-2 px-3 text-right">$2,000</td><td class="py-2 px-3 text-center">1</td><td class="py-2 px-3 text-right font-semibold">$2,000</td><td class="py-2 px-3 text-slate-400">檢查膀胱壁與內部結構</td></tr>
+                  <tr><td class="py-2 px-3 font-medium text-slate-900">全血球計數 (CBC)</td><td class="py-2 px-3 text-right">$850</td><td class="py-2 px-3 text-center">1</td><td class="py-2 px-3 text-right font-semibold">$850</td><td class="py-2 px-3 text-amber-600">紅血球偏高 (血液濃縮)</td></tr>
+                  <tr><td class="py-2 px-3 font-medium text-slate-900">離子檢驗 (Lyte)</td><td class="py-2 px-3 text-right">$500</td><td class="py-2 px-3 text-center">1</td><td class="py-2 px-3 text-right font-semibold">$500</td><td class="py-2 px-3 text-emerald-600">電解質全數正常</td></tr>
+                  <tr><td class="py-2 px-3 font-medium text-slate-900">血清生化檢驗 (每項)</td><td class="py-2 px-3 text-right">$250</td><td class="py-2 px-3 text-center">3</td><td class="py-2 px-3 text-right font-semibold">$750</td><td class="py-2 px-3 text-slate-400">肝腎代謝指標正常</td></tr>
+                  <tr><td class="py-2 px-3 font-medium text-slate-900">SDMA 早期腎檢驗</td><td class="py-2 px-3 text-right">$500</td><td class="py-2 px-3 text-center">1</td><td class="py-2 px-3 text-right font-semibold">$500</td><td class="py-2 px-3 text-emerald-600">12 μg/dL (優良)</td></tr>
+                  <tr><td class="py-2 px-3 font-medium text-slate-900">口服藥 (10KG以下)</td><td class="py-2 px-3 text-right">$600</td><td class="py-2 px-3 text-center">1</td><td class="py-2 px-3 text-right font-semibold">$600</td><td class="py-2 px-3 text-slate-400">膠囊劑型 (消炎/放鬆)</td></tr>
+                  <tr><td class="py-2 px-3 font-medium text-slate-900">掛號、診察、藥劑與餵藥器</td><td class="py-2 px-3 text-right">-</td><td class="py-2 px-3 text-center">-</td><td class="py-2 px-3 text-right font-semibold">$875</td><td class="py-2 px-3 text-slate-400">常規行政與輔助器材</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- 專業灌水姿勢教學 -->
+          <div class="bg-cyan-50 border border-cyan-100 rounded-lg p-4">
+            <h4 class="text-xs font-bold text-cyan-900 flex items-center mb-2">
+              <i class="fa-solid fa-hand-holding-droplet mr-1.5 text-cyan-700"></i>
+              蕭醫師叮嚀：針筒灌水標準操作手勢
+            </h4>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-cyan-800">
+              <div class="bg-white p-2.5 rounded border border-cyan-200">
+                <strong>1. 保持自然趴姿</strong>
+                <p class="text-slate-500 mt-1">貓咪四腳著地趴好，<span class="text-rose-600 font-bold">頭部絕對不可向後仰</span>，避免水誤入氣管造成吸入性肺炎。</p>
+              </div>
+              <div class="bg-white p-2.5 rounded border border-cyan-200">
+                <strong>2. 嘴角牙縫慢推</strong>
+                <p class="text-slate-500 mt-1">將針筒輕輕插入嘴角側邊牙縫，緩慢推入 1~2 ml，確認貓咪有吞嚥動作再推入下一口。</p>
+              </div>
+              <div class="bg-white p-2.5 rounded border border-cyan-200">
+                <strong>3. 單次 5~10 ml 少量多次</strong>
+                <p class="text-slate-500 mt-1">單次切勿灌超過 10ml，每日總灌水量嚴格控制在 50~80ml，其餘靠濕食水分誘發。</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+
+    <!-- TAB 3: 歷史追蹤日誌 -->
+    <div id="tab-history" class="tab-content hidden space-y-4">
+      <div class="flex justify-between items-center mb-2">
+        <h2 class="text-base font-bold text-slate-900 flex items-center">
+          <i class="fa-solid fa-list-check text-teal-600 mr-2"></i>
+          每日照護紀錄歷史庫
+        </h2>
+        <div class="flex space-x-2">
+          <button onclick="exportData()" class="px-3 py-1 text-xs font-semibold rounded bg-slate-100 text-slate-700 hover:bg-slate-200 transition">
+            <i class="fa-solid fa-download mr-1"></i> 匯出 JSON
+          </button>
+          <button onclick="clearAllRecords()" class="px-3 py-1 text-xs font-semibold rounded bg-rose-50 text-rose-600 hover:bg-rose-100 transition">
+            <i class="fa-solid fa-trash mr-1"></i> 清空重置
+          </button>
+        </div>
+      </div>
+
+      <div id="historyListContainer" class="space-y-3">
+        <!-- JS 動態插入 -->
+      </div>
+    </div>
+
+    <!-- TAB 4: 緊急急診警訊 -->
+    <div id="tab-emergency" class="tab-content hidden space-y-6">
+
+      <div class="bg-rose-50 border-2 border-rose-300 rounded-2xl p-6 shadow-md">
+        <div class="flex items-center space-x-3 mb-4">
+          <div class="w-12 h-12 rounded-xl bg-rose-600 text-white flex items-center justify-center text-2xl shadow-lg shadow-rose-600/30">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+          <div>
+            <h2 class="text-lg font-black text-rose-900">🚨 24 小時尿道完全阻塞急診警訊</h2>
+            <p class="text-xs text-rose-700">若出現以下任何一項症狀，屬致死性急症（急性腎衰竭與高血鉀），請立即送 24hr 動物醫院！</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+          <div class="bg-white rounded-xl p-4 border border-rose-200 shadow-sm">
+            <div class="text-rose-600 text-xl font-bold mb-1">01</div>
+            <h3 class="text-sm font-bold text-slate-900 mb-2">蹲砂盆無尿排出</h3>
+            <p class="text-xs text-slate-600 leading-relaxed">
+              Pony 頻繁進出貓砂盆、用力蹲姿叫喊，但貓砂上<strong>完全沒有任何尿液滴下</strong>。代表尿道已被結晶或黏液栓子完全堵塞！
+            </p>
+          </div>
+
+          <div class="bg-white rounded-xl p-4 border border-rose-200 shadow-sm">
+            <div class="text-rose-600 text-xl font-bold mb-1">02</div>
+            <h3 class="text-sm font-bold text-slate-900 mb-2">頻繁嘔吐、拒絕進食</h3>
+            <p class="text-xs text-slate-600 leading-relaxed">
+              體內尿毒素與鉀離子急劇攀升，引發中樞神經噁心嘔吐、極度精神萎靡、嗜睡昏睡、呼叫無反應。
+            </p>
+          </div>
+
+          <div class="bg-white rounded-xl p-4 border border-rose-200 shadow-sm">
+            <div class="text-rose-600 text-xl font-bold mb-1">03</div>
+            <h3 class="text-sm font-bold text-slate-900 mb-2">下腹部膨大硬塊 (硬膀胱)</h3>
+            <p class="text-xs text-slate-600 leading-relaxed">
+              輕觸下腹部感覺到像乒乓球甚至網球大小的<strong>緊繃堅硬球狀物</strong>，且貓咪因劇烈疼痛尖叫抗拒、咬人。
+            </p>
+          </div>
+        </div>
+
+        <!-- 應急行動指引 -->
+        <div class="mt-6 bg-rose-100/70 rounded-xl p-4 border border-rose-200">
+          <h4 class="text-xs font-bold text-rose-900 uppercase tracking-wide mb-2">送醫前緊急禁忌：</h4>
+          <ul class="text-xs text-rose-800 space-y-1.5 list-disc list-inside">
+            <li><strong>嚴禁用力擠壓貓咪腹部</strong>：可能導致脆弱充血的膀胱破裂！</li>
+            <li><strong>嚴禁在未排尿狀況下強行大量灌水</strong>：只會讓膀胱更脹更大，加速腎水腫與膀胱破裂風險。</li>
+            <li><strong>立即出發前往就近具備急診導尿與重症加護設備的動物醫院</strong>。</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- 頁尾 -->
+  <footer class="bg-white border-t border-slate-200 py-4 mt-8">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-2">
+      <div>Pony Medical & Care Tracker · 崔董專屬愛貓健康守護</div>
+      <div>秘書助理 Frank 協同建構 · 託管於 GitHub Pages</div>
+    </div>
+  </footer>
+
+  <!-- 應用程式邏輯 -->
+  <script>
+    // Tab 切換邏輯
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('text-teal-700', 'border-teal-600');
+        btn.classList.add('text-slate-500', 'border-transparent');
+      });
+
+      const targetContent = document.getElementById(`tab-${tabId}`);
+      const targetBtn = document.getElementById(`tab-${tabId}-btn`);
+      if (targetContent) targetContent.classList.remove('hidden');
+      if (targetBtn) {
+        targetBtn.classList.remove('text-slate-500', 'border-transparent');
+        targetBtn.classList.add('text-teal-700', 'border-teal-600');
+      }
+
+      if (tabId === 'history') {
+        renderHistory();
+      }
+    }
+
+    // 計算水分
+    function calculateWater() {
+      const syringe = parseFloat(document.getElementById('inputSyringeWater').value) || 0;
+      const diet = parseFloat(document.getElementById('inputDietWater').value) || 0;
+      const bowl = parseFloat(document.getElementById('inputBowlWater').value) || 0;
+      const total = syringe + diet + bowl;
+
+      document.getElementById('totalWaterText').textContent = total;
+
+      const progress = Math.min(Math.round((total / 220) * 100), 100);
+      const bar = document.getElementById('waterProgressBar');
+      bar.style.width = `${progress}%`;
+
+      if (total >= 200) {
+        bar.className = 'bg-gradient-to-r from-teal-400 to-emerald-500 h-full rounded-full transition-all duration-500';
+      } else {
+        bar.className = 'bg-gradient-to-r from-cyan-400 to-teal-500 h-full rounded-full transition-all duration-500';
+      }
+      return total;
+    }
+
+    // 儲存日誌
+    function saveDailyRecord() {
+      const syringe = parseFloat(document.getElementById('inputSyringeWater').value) || 0;
+      const diet = parseFloat(document.getElementById('inputDietWater').value) || 0;
+      const bowl = parseFloat(document.getElementById('inputBowlWater').value) || 0;
+      const totalWater = syringe + diet + bowl;
+
+      const medMorn = document.getElementById('medMorning').checked;
+      const medEve = document.getElementById('medEvening').checked;
+
+      const count = parseInt(document.getElementById('urinationCount').value) || 0;
+      const weight = parseFloat(document.getElementById('inputDailyWeight').value) || 4.74;
+      const urineSize = document.getElementById('urineSize').value;
+      const urineColor = document.getElementById('urineColor').value;
+      const straining = document.getElementById('strainingStatus').value;
+      const notes = document.getElementById('dailyNotes').value.trim();
+
+      const todayStr = new Date().toISOString().split('T')[0];
+      const timeStr = new Date().toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+
+      const record = {
+        id: Date.now(),
+        date: todayStr,
+        time: timeStr,
+        water: { syringe, diet, bowl, total: totalWater },
+        meds: { morning: medMorn, evening: medEve },
+        urination: { count, size: urineSize, color: urineColor, straining },
+        weight,
+        notes
+      };
+
+      let history = JSON.parse(localStorage.getItem('pony_care_records') || '[]');
+      history.unshift(record);
+      localStorage.setItem('pony_care_records', JSON.stringify(history));
+
+      // 更新頂部最新體重
+      document.getElementById('headerWeight').innerHTML = `${weight} <span class="text-xs font-normal text-teal-200">kg</span>`;
+
+      alert(`✅ 成功儲存今日 (${todayStr}) Pony 照護紀錄！\n今日總補水量：${totalWater} ml\n服藥狀態：${medMorn && medEve ? '早晚皆服藥' : (medMorn ? '僅早藥' : (medEve ? '僅晚藥' : '未服藥'))}`);
+
+      switchTab('history');
+    }
+
+    // 渲染歷史日誌
+    function renderHistory() {
+      const container = document.getElementById('historyListContainer');
+      const history = JSON.parse(localStorage.getItem('pony_care_records') || '[]');
+
+      if (history.length === 0) {
+        container.innerHTML = `
+          <div class="bg-white rounded-xl p-8 border border-slate-200 text-center text-slate-400">
+            <i class="fa-regular fa-clipboard text-4xl mb-3 text-slate-300"></i>
+            <p class="text-sm">尚無任何歷史追蹤紀錄，請在「今日照護打卡」分頁記錄今日狀況！</p>
+          </div>
+        `;
+        return;
+      }
+
+      let html = '';
+      history.forEach(item => {
+        const isWaterGoalMet = item.water.total >= 200;
+        const allMedsTaken = item.meds.morning && item.meds.evening;
+
+        html += `
+          <div class="bg-white rounded-xl p-4 border border-slate-200 shadow-sm space-y-3">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-slate-100 gap-1">
+              <div class="flex items-center space-x-2">
+                <span class="text-sm font-bold text-slate-900">${item.date}</span>
+                <span class="text-xs text-slate-400">${item.time}</span>
+                <span class="text-xs px-2 py-0.5 rounded-full font-bold ${item.weight ? 'bg-slate-100 text-slate-700' : ''}">${item.weight} kg</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <span class="text-xs px-2 py-0.5 rounded-full font-bold ${isWaterGoalMet ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
+                  補水 ${item.water.total} ml ${isWaterGoalMet ? '✓ 達標' : '待補'}
+                </span>
+                <span class="text-xs px-2 py-0.5 rounded-full font-bold ${allMedsTaken ? 'bg-indigo-100 text-indigo-800' : 'bg-rose-100 text-rose-800'}">
+                  用藥 ${allMedsTaken ? '早晚完成' : '缺'}
+                </span>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+              <div class="bg-slate-50 p-2 rounded">
+                <span class="text-slate-400">灌水 / 飲食水</span>
+                <div class="font-semibold text-slate-700 mt-0.5">${item.water.syringe} ml / ${item.water.diet + item.water.bowl} ml</div>
+              </div>
+              <div class="bg-slate-50 p-2 rounded">
+                <span class="text-slate-400">排尿次數與大小</span>
+                <div class="font-semibold text-slate-700 mt-0.5">${item.urination.count} 次 · ${item.urination.size.split(' ')[0]}</div>
+              </div>
+              <div class="bg-slate-50 p-2 rounded">
+                <span class="text-slate-400">尿液顏色</span>
+                <div class="font-semibold ${item.urination.color.includes('血') ? 'text-rose-600' : 'text-slate-700'} mt-0.5">${item.urination.color.split(' ')[0]}</div>
+              </div>
+              <div class="bg-slate-50 p-2 rounded">
+                <span class="text-slate-400">用力擠尿評估</span>
+                <div class="font-semibold text-slate-700 mt-0.5">${item.urination.straining.split('，')[0]}</div>
+              </div>
+            </div>
+
+            ${item.notes ? `<div class="text-xs bg-slate-50 p-2.5 rounded text-slate-600"><span class="font-bold text-slate-700">備註：</span>${item.notes}</div>` : ''}
+          </div>
+        `;
+      });
+
+      container.innerHTML = html;
+    }
+
+    // 匯出 JSON
+    function exportData() {
+      const data = localStorage.getItem('pony_care_records') || '[]';
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `pony_care_backup_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // 清除資料
+    function clearAllRecords() {
+      if (confirm('確定要清空所有歷史追蹤日誌嗎？此動作無法復原。')) {
+        localStorage.removeItem('pony_care_records');
+        renderHistory();
+      }
+    }
+
+    // 初始化預設今日測試範例資料（若為空）
+    window.addEventListener('DOMContentLoaded', () => {
+      let history = JSON.parse(localStorage.getItem('pony_care_records') || '[]');
+      if (history.length === 0) {
+        history.push({
+          id: 1729900800000,
+          date: '2026-10-26',
+          time: '20:30',
+          water: { syringe: 40, diet: 120, bowl: 20, total: 180 },
+          meds: { morning: true, evening: true },
+          urination: { count: 3, size: '偏小塊 (10元硬幣大小)', color: '微紅/淡粉紅 (輕度血尿 ⚠️)', straining: '明顯擠尿、來回進出砂盆 ⚠️' },
+          weight: 4.74,
+          notes: '杜瑪動物醫院初診返家，已餵食晚藥膠囊，針筒分次灌水共40ml，尚有些微淡紅血尿，持續觀察。'
+        });
+        localStorage.setItem('pony_care_records', JSON.stringify(history));
+      }
+      calculateWater();
+    });
+  </script>
+</body>
+</html>
